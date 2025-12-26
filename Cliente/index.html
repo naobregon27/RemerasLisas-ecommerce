@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" id="favicon" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title id="page-title">Tienda Online</title>
+    <script>
+      // Función para actualizar el título y el favicon de la página
+      window.updateTitleAndFavicon = function(tiendaSlug, logoUrl) {
+        // Actualizar el título con el nombre de la tienda
+        if (tiendaSlug) {
+          document.getElementById('page-title').textContent = tiendaSlug.charAt(0).toUpperCase() + tiendaSlug.slice(1).replace(/-/g, ' ');
+        }
+        
+        // Actualizar el favicon si hay un logo disponible
+        if (logoUrl) {
+          document.getElementById('favicon').href = logoUrl;
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
