@@ -55,6 +55,21 @@ export const pedidoService = {
     } catch (error) {
       throw error.response?.data || error;
     }
+  },
+
+  /**
+   * Verifica el estado de un pago de Mercado Pago
+   * @param {string} pedidoId - ID del pedido
+   * @returns {Promise<Object>} Estado del pago
+   */
+  verificarEstadoPago: async (pedidoId) => {
+    try {
+      const response = await api.get(`/api/mercadopago/pedido/${pedidoId}/estado`);
+      return response.data;
+    } catch (error) {
+      console.error('Error al verificar estado del pago:', error);
+      throw error.response?.data || error;
+    }
   }
 };
 

@@ -6,6 +6,9 @@ import CategoriaPage from './pages/CategoriaPage';
 import BusquedaPage from './pages/BusquedaPage';
 import CarritoPage from './pages/CarritoPage';
 import MisPedidosPage from './pages/MisPedidosPage';
+import PedidoExitoso from './pages/PedidoExitoso';
+import PedidoPendiente from './pages/PedidoPendiente';
+import PedidoFallido from './pages/PedidoFallido';
 
 // Tienda predeterminada a la que se redirigirá al entrar a la aplicación
 const TIENDA_PREDETERMINADA = "concordia";
@@ -33,6 +36,11 @@ function App() {
           
           {/* Ruta de mis pedidos */}
           <Route path="/:tiendaSlug/mis-pedidos" element={<MisPedidosPage />} />
+          
+          {/* Rutas de callbacks de Mercado Pago */}
+          <Route path="/:tiendaSlug/pedido/exitoso" element={<PedidoExitoso />} />
+          <Route path="/:tiendaSlug/pedido/pendiente" element={<PedidoPendiente />} />
+          <Route path="/:tiendaSlug/pedido/fallido" element={<PedidoFallido />} />
           
           {/* Agregar más rutas para las otras páginas cuando se creen */}
           {/* <Route path="/:tiendaSlug/producto/:productoId" element={<ProductoDetallePage />} /> */}

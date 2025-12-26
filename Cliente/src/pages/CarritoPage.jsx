@@ -35,7 +35,7 @@ const CarritoPage = () => {
       pais: 'Argentina',
       telefono: ''
     },
-    metodoPago: 'efectivo',
+    metodoPago: 'mercadopago',
     notas: ''
   });
   const [enviandoPedido, setEnviandoPedido] = useState(false);
@@ -309,7 +309,32 @@ const CarritoPage = () => {
       // Enviar al servidor
       const resultado = await pedidoService.crearPedido(pedidoData);
       
-      // Guardar el pedido confirmado para mostrar los detalles
+      // Si es Mercado Pago, redirigir al init_point
+      if (formData.metodoPago === 'mercadopago') {
+        if (resultado.mercadopago && resultado.mercadopago.initPoint) {
+          // Guardar ID del pedido en localStorage
+          localStorage.setItem('pedidoId', resultado._id);
+          
+          // Mostrar mensaje de redirección
+          toast.info('Redirigiendo a Mercado Pago...');
+          
+          // Redirigir a Mercado Pago
+          setTimeout(() => {
+            window.location.href = resultado.mercadopago.initPoint;
+          }, 1000);
+          return;
+        } else if (resultado.mercadopago && resultado.mercadopago.error) {
+          toast.error(resultado.mercadopago.error);
+          setEnviandoPedido(false);
+          return;
+        } else {
+          toast.error('Error al configurar el pago con Mercado Pago');
+          setEnviandoPedido(false);
+          return;
+        }
+      }
+      
+      // Para otros métodos de pago, guardar el pedido confirmado
       setPedidoConfirmado({
         ...resultado,
         metodoPago: formData.metodoPago,
@@ -577,6 +602,28 @@ const CarritoPage = () => {
                 <div className="mb-8">
                   <h3 className="font-semibold mb-5 text-white text-xl">Método de pago</h3>
                   <div className="space-y-3">
+                    <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${formData.metodoPago === 'mercadopago' ? 'border-[var(--color-green-500)] bg-[var(--color-green-500)]/10' : 'border-subtle bg-[var(--color-navy-800)]/50 hover:border-[var(--color-green-500)]/50'}`}>
+                      <input
+                        type="radio"
+                        name="metodoPago"
+                        value="mercadopago"
+                        checked={formData.metodoPago === 'mercadopago'}
+                        onChange={handleInputChange}
+                        className="mr-4 cursor-pointer h-5 w-5 accent-[var(--color-green-500)]"
+                      />
+                      <div className="flex flex-1 items-center">
+                        <div className="h-12 w-12 rounded-full bg-[#009EE3]/20 flex items-center justify-center mr-4">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[#009EE3]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="font-semibold text-white text-base">💳 Mercado Pago</span>
+                          <p className="text-sm text-muted">Tarjeta, efectivo, débito y más</p>
+                        </div>
+                      </div>
+                    </label>
+
                     <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${formData.metodoPago === 'efectivo' ? 'border-[var(--color-green-500)] bg-[var(--color-green-500)]/10' : 'border-subtle bg-[var(--color-navy-800)]/50 hover:border-[var(--color-green-500)]/50'}`}>
                       <input
                         type="radio"
@@ -595,28 +642,6 @@ const CarritoPage = () => {
                         <div>
                           <span className="font-semibold text-white text-base">Efectivo</span>
                           <p className="text-sm text-muted">Paga cuando recibas tu compra</p>
-                        </div>
-                      </div>
-                    </label>
-                    
-                    <label className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${formData.metodoPago === 'tarjeta' ? 'border-[var(--color-green-500)] bg-[var(--color-green-500)]/10' : 'border-subtle bg-[var(--color-navy-800)]/50 hover:border-[var(--color-green-500)]/50'}`}>
-                      <input
-                        type="radio"
-                        name="metodoPago"
-                        value="tarjeta"
-                        checked={formData.metodoPago === 'tarjeta'}
-                        onChange={handleInputChange}
-                        className="mr-4 cursor-pointer h-5 w-5 accent-[var(--color-green-500)]"
-                      />
-                      <div className="flex flex-1 items-center">
-                        <div className="h-12 w-12 rounded-full bg-blue-500/20 flex items-center justify-center mr-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <span className="font-semibold text-white text-base">Tarjeta de crédito/débito</span>
-                          <p className="text-sm text-muted">Pago seguro online</p>
                         </div>
                       </div>
                     </label>
