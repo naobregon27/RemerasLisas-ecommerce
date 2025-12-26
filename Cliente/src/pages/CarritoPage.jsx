@@ -268,33 +268,32 @@ const CarritoPage = () => {
     setEnviandoPedido(true);
     
     try {
-      // Procesar items del carrito para el formato requerido
-      const productosFormateados = items.map(item => {
-        const productoId = item.producto._id || item.producto.id;
-        const precio = item.producto.precio || item.precioUnitario || 0;
-        const cantidad = cantidadesLocales[productoId] !== undefined 
-          ? cantidadesLocales[productoId] 
-          : item.cantidad;
-          
-        return {
-          producto: productoId,
-          cantidad,
-          variante: item.variante || {},
-          precio,
-          subtotal: precio * cantidad
-        };
-      });
+      // IMPORTANTE: Sincronizar actualizaciones pendientes antes de crear el pedido
+      if (Object.keys(actualizacionesPendientes.current).length > 0) {
+        console.log('Sincronizando actualizaciones pendientes antes de crear pedido...');
+        await sincronizarActualizaciones();
+        // Esperar un momento para que el backend actualice el carrito
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Verificar que el carrito tenga items
+      if (!items || items.length === 0) {
+        toast.error('El carrito está vacío');
+        setEnviandoPedido(false);
+        return;
+      }
       
       // Calcular el total y otros valores
       const subtotal = Number(calcularTotal());
       const impuestos = Number((subtotal * 0.10).toFixed(2)); // 10% de impuestos
       const costoEnvio = 0.00; // Envío gratuito
-      const descuento = 0; // Sin descuento por ahora
+      const descuento = 0.00; // Sin descuentos por ahora
       const total = Number((subtotal + impuestos + costoEnvio - descuento).toFixed(2));
       
-      // Crear objeto de pedido
+      // Crear objeto de pedido según el formato de la guía de Mercado Pago
+      // El backend obtiene los productos automáticamente del carrito del usuario
+      // Pero enviamos los totales calculados para validación y consistencia
       const pedidoData = {
-        productos: productosFormateados,
         direccionEnvio: formData.direccionEnvio,
         metodoPago: formData.metodoPago,
         subtotal,
@@ -302,43 +301,82 @@ const CarritoPage = () => {
         costoEnvio,
         descuento,
         total,
-        notas: formData.notas,
-        local: items[0]?.producto?.tienda || items[0]?.tienda // ID de la tienda
+        notas: formData.notas || ''
       };
+      
+      console.log('Enviando pedido con datos:', pedidoData);
       
       // Enviar al servidor
       const resultado = await pedidoService.crearPedido(pedidoData);
       
+      // Log para debugging
+      console.log('Respuesta completa del backend:', resultado);
+      console.log('Datos de Mercado Pago:', resultado.mercadopago);
+      
       // Si es Mercado Pago, redirigir al init_point
       if (formData.metodoPago === 'mercadopago') {
-        if (resultado.mercadopago && resultado.mercadopago.initPoint) {
-          // Guardar ID del pedido en localStorage
-          localStorage.setItem('pedidoId', resultado._id);
+        // Verificar que la respuesta tenga la estructura correcta
+        if (resultado.mercadopago) {
+          // Verificar si hay error en la creación de la preferencia (según documentación)
+          if (resultado.mercadopago.error) {
+            // Hay un error específico de Mercado Pago
+            const errorMessage = resultado.mercadopago.message || resultado.mercadopago.error;
+            toast.error(errorMessage || 'Error al configurar el pago con Mercado Pago');
+            setEnviandoPedido(false);
+            return;
+          }
           
-          // Mostrar mensaje de redirección
-          toast.info('Redirigiendo a Mercado Pago...');
+          // Obtener la URL de pago (el backend devuelve initPoint para producción o sandboxInitPoint para test)
+          // Según la documentación: usar initPoint || sandboxInitPoint
+          const urlPago = resultado.mercadopago.initPoint || resultado.mercadopago.sandboxInitPoint;
           
-          // Redirigir a Mercado Pago
-          setTimeout(() => {
-            window.location.href = resultado.mercadopago.initPoint;
-          }, 1000);
-          return;
-        } else if (resultado.mercadopago && resultado.mercadopago.error) {
-          toast.error(resultado.mercadopago.error);
-          setEnviandoPedido(false);
-          return;
-        } else {
-          toast.error('Error al configurar el pago con Mercado Pago');
-          setEnviandoPedido(false);
-          return;
+          if (urlPago) {
+            // Todo bien, redirigir a Mercado Pago
+            localStorage.setItem('pedidoId', resultado._id);
+            
+            // Mostrar mensaje de redirección
+            toast.info('Redirigiendo a Mercado Pago...');
+            
+            // Redirigir a Mercado Pago
+            setTimeout(() => {
+              window.location.href = urlPago;
+            }, 1000);
+            return;
+          }
         }
+        
+        // Si llegamos aquí, el pedido se creó pero Mercado Pago falló
+        // El backend devolvió 201 pero no pudo crear la preferencia o no hay URL de pago
+        console.warn('Pedido creado pero Mercado Pago no está disponible o no se obtuvo la URL de pago. Pedido ID:', resultado._id);
+        console.warn('Datos de Mercado Pago recibidos:', resultado.mercadopago);
+        
+        // Calcular el total final
+        const totalFinal = resultado.total || Number((Number(calcularTotal()) * 1.10).toFixed(2));
+        
+        // Guardar el pedido con flag de error de Mercado Pago
+        setPedidoConfirmado({
+          ...resultado,
+          metodoPago: 'mercadopago',
+          total: totalFinal,
+          mercadopagoError: true // Flag para mostrar mensaje especial
+        });
+        
+        // Mostrar mensaje informativo
+        toast.warning('Tu pedido fue registrado, pero hubo un problema técnico con Mercado Pago. Te contactaremos pronto.');
+        
+        // Cerrar modal de checkout y mostrar confirmación
+        setShowModal(false);
+        setShowConfirmacionModal(true);
+        setEnviandoPedido(false);
+        return;
       }
       
       // Para otros métodos de pago, guardar el pedido confirmado
+      const totalFinal = resultado.total || Number((Number(calcularTotal()) * 1.10).toFixed(2));
       setPedidoConfirmado({
         ...resultado,
         metodoPago: formData.metodoPago,
-        total: total
+        total: totalFinal
       });
       
       // Mostrar el modal de confirmación según el método de pago
@@ -1036,6 +1074,54 @@ const CarritoPage = () => {
                             </div>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleContinuarDespuesDeConfirmacion}
+                      className="w-full py-4 rounded-lg font-semibold transition duration-200 shadow-md hover:shadow-lg cursor-pointer"
+                      style={{ backgroundColor: colorPrimario, color: colorTexto }}
+                    >
+                      Entendido
+                    </button>
+                  </>
+                ) : pedidoConfirmado.mercadopagoError ? (
+                  <>
+                    <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6"
+                         style={{ backgroundColor: `${colorPrimario}25` }}>
+                      <div className="w-20 h-20 rounded-full flex items-center justify-center bg-[var(--color-navy-800)] border-4 border-yellow-500">
+                        <svg className="w-12 h-12 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                      </div>
+                    </div>
+                    <h2 className="text-3xl font-bold text-white mb-2">⚠️ Pedido Registrado</h2>
+                    <p className="text-lg text-muted mb-6">
+                      Tu pedido fue registrado correctamente, pero hubo un problema técnico con Mercado Pago.
+                    </p>
+                    
+                    {/* Alerta de problema técnico */}
+                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 mb-6">
+                      <div className="flex items-start">
+                        <svg className="h-6 w-6 text-yellow-400 mr-3 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                          <p className="text-white font-semibold mb-1">Atención: Problema con Mercado Pago</p>
+                          <p className="text-muted text-sm">
+                            Nos pondremos en contacto contigo pronto para coordinar el pago. 
+                            Puedes usar otro método de pago o esperar a que te contactemos.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="rounded-lg text-center mb-8 p-6 bg-[var(--color-navy-800)] border border-subtle">
+                      <p className="font-medium mb-2 text-sm text-muted">Número de pedido:</p>
+                      <p className="text-xl font-mono font-semibold tracking-wide"
+                         style={{ color: colorPrimario }}>{pedidoConfirmado._id}</p>
+                      <div className="mt-4 pt-4 border-t border-subtle">
+                        <p className="text-sm text-muted">Total: <span className="font-semibold text-white">${pedidoConfirmado.total?.toFixed(2)}</span></p>
+                        <p className="text-xs text-muted mt-2">Guarde este número para cualquier consulta</p>
                       </div>
                     </div>
                     <button
