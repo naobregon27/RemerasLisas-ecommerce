@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import Layout from '../components/layout/Layout';
 import Banner from '../components/ui/Banner';
 import BannerGallery from '../components/ui/BannerGallery';
+import SeccionesPersonalizadas from '../components/ui/SeccionesPersonalizadas';
 import ProductList from '../components/product/ProductList';
 import Loader from '../components/ui/Loader';
 import { fetchDestacados, fetchProductosEnOferta } from '../store/tiendaSlice';
@@ -150,6 +151,8 @@ const HomePage = () => {
       <Banner />
       
       <BannerGallery />
+      
+      <SeccionesPersonalizadas />
       
       <div className="container mx-auto px-4 py-8">
         {/* Sección de productos destacados */}

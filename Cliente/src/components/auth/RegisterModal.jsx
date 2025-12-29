@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useSelector } from 'react-redux';
+import { useParams } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { toast } from 'react-toastify';
 
 const RegisterModal = ({ isOpen, onClose, onSuccess, onNeedsVerification }) => {
   const { tienda } = useSelector((state) => state.tienda);
+  const { tiendaSlug } = useParams();
   const [userData, setUserData] = useState({
     name: '',
     email: '',
@@ -36,7 +38,9 @@ const RegisterModal = ({ isOpen, onClose, onSuccess, onNeedsVerification }) => {
       const { confirmPassword, ...registerData } = userData;
       const payload = {
         ...registerData,
-        localId: tienda._id
+        localId: tienda._id,
+        localSlug: tiendaSlug || tienda?.slug || '',
+        role: 'usuario'
       };
       const response = await authService.register(payload);
       
