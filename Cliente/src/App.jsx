@@ -11,7 +11,7 @@ import PedidoPendiente from './pages/PedidoPendiente';
 import PedidoFallido from './pages/PedidoFallido';
 
 // Tienda predeterminada a la que se redirigirá al entrar a la aplicación
-const TIENDA_PREDETERMINADA = "concordia125";
+const TIENDA_PREDETERMINADA = "salada";
 
 function App() {
   return (
