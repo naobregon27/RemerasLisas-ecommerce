@@ -29,9 +29,29 @@ const ProductCard = ({ producto, onClick, compact = false }) => {
     slug = '',
   } = producto;
   
-  // Calcula el precio con descuento (usar porcentajeDescuento si está disponible, sino descuento)
-  const descuentoAplicable = porcentajeDescuento > 0 ? porcentajeDescuento : descuento;
-  const precioFinal = precio * (1 - descuentoAplicable / 100);
+  // Calcula el precio con descuento
+  // Solo aplicar descuento si el producto está explícitamente en oferta o tiene precioAnterior
+  let descuentoAplicable = 0;
+  let precioFinal = precio;
+  
+  if (enOferta === true) {
+    // Si está en oferta, usar porcentajeDescuento o calcular desde precioAnterior
+    if (porcentajeDescuento > 0) {
+      descuentoAplicable = porcentajeDescuento;
+      precioFinal = precio * (1 - descuentoAplicable / 100);
+    } else if (precioAnterior > 0 && precioAnterior > precio) {
+      // Calcular descuento desde precioAnterior
+      descuentoAplicable = Math.round(((precioAnterior - precio) / precioAnterior) * 100);
+      precioFinal = precio;
+    } else if (descuento > 0) {
+      descuentoAplicable = descuento;
+      precioFinal = precio * (1 - descuentoAplicable / 100);
+    }
+  } else if (precioAnterior > 0 && precioAnterior > precio) {
+    // Si tiene precioAnterior mayor, calcular descuento
+    descuentoAplicable = Math.round(((precioAnterior - precio) / precioAnterior) * 100);
+    precioFinal = precio;
+  }
   
   // Obtiene la URL de la primera imagen o usa un placeholder
   const imagen = imagenes && imagenes.length > 0 
@@ -43,8 +63,8 @@ const ProductCard = ({ producto, onClick, compact = false }) => {
   // Genera la URL para ver el detalle del producto
   const productoUrl = `/${tiendaSlug}/producto/${_id}`;
   
-  // Verificamos si el producto tiene descuento o está en oferta
-  const tieneDescuento = descuentoAplicable > 0 || enOferta;
+  // Verificamos si el producto tiene descuento - SOLO si realmente está en oferta o tiene precioAnterior
+  const tieneDescuento = (enOferta === true && descuentoAplicable > 0) || (precioAnterior > 0 && precioAnterior > precio);
   
   // Manejar errores en la carga de imágenes
   const handleImageError = () => {

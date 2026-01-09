@@ -6,11 +6,13 @@ import Banner from '../components/ui/Banner';
 import BannerGallery from '../components/ui/BannerGallery';
 import SeccionesPersonalizadas from '../components/ui/SeccionesPersonalizadas';
 import ProductList from '../components/product/ProductList';
+import ProductCarousel from '../components/product/ProductCarousel';
 import Loader from '../components/ui/Loader';
 import { fetchDestacados, fetchProductosEnOferta } from '../store/tiendaSlice';
 import CategoryModal from './CategoryModal';
 import ProductViewModal from '../components/modals/ProductViewModal';
 import { productoService } from '../services/productoService';
+import { tiendaService } from '../services/tiendaService';
 import { agregarAlCarrito } from '../store/carritoSlice';
 import { toast } from 'react-toastify';
 import { authService } from '../services/authService';
@@ -36,8 +38,9 @@ const HomePage = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [loadingProduct, setLoadingProduct] = useState(false);
 
-  // Añadir un estado local para productos en oferta
-  const [ofertasForzadas, setOfertasForzadas] = useState([]);
+  // Estado para todos los productos (para el carrusel)
+  const [todosLosProductos, setTodosLosProductos] = useState([]);
+  const [loadingTodos, setLoadingTodos] = useState(false);
   
   // Colores de la tienda para estilos personalizados
   const colorPrimario = tienda?.configuracion?.colorPrimario || '#3b82f6';
@@ -49,47 +52,41 @@ const HomePage = () => {
       console.log("Cargando productos destacados y en oferta para el slug:", tiendaSlug);
       dispatch(fetchDestacados(tiendaSlug));
       dispatch(fetchProductosEnOferta(tiendaSlug));
+      
+      // Cargar todos los productos para el carrusel
+      setLoadingTodos(true);
+      tiendaService.obtenerTodosLosProductos(tiendaSlug, { page: 1, limit: 100 })
+        .then(data => {
+          console.log('Productos cargados para carrusel:', data.productos?.length || 0);
+          setTodosLosProductos(data.productos || []);
+          setLoadingTodos(false);
+        })
+        .catch(error => {
+          console.error('Error al cargar todos los productos:', error);
+          setLoadingTodos(false);
+        });
     }
   }, [dispatch, tiendaSlug]);
 
-  // Añadir efecto para mostrar productos en oferta en la consola cuando se carguen
+  // Efecto para depurar productos en oferta
   useEffect(() => {
-    if (productosEnOferta && productosEnOferta.length > 0) {
-      console.log("Productos en oferta cargados:", productosEnOferta.length, productosEnOferta);
+    if (productosEnOferta) {
+      console.log('Productos en oferta en HomePage:', productosEnOferta.length, productosEnOferta);
+      if (productosEnOferta.length > 0) {
+        console.log('Detalles de productos en oferta:', productosEnOferta.map(p => ({
+          nombre: p.nombre,
+          enOferta: p.enOferta,
+          porcentajeDescuento: p.porcentajeDescuento,
+          precioAnterior: p.precioAnterior,
+          precio: p.precio
+        })));
+      } else {
+        console.warn('No se encontraron productos en oferta');
+      }
     } else {
-      console.log("No hay productos en oferta cargados");
+      console.log('productosEnOferta es null o undefined');
     }
   }, [productosEnOferta]);
-
-  // Efecto para forzar productos en oferta basado en los datos del API
-  useEffect(() => {
-    if (destacados && destacados.length > 0) {
-      // Filtrar productos que podrían estar en oferta
-      const posiblesOfertas = destacados.filter(p => 
-        p.enOferta === true || 
-        (p.porcentajeDescuento && p.porcentajeDescuento > 0) || 
-        (p.descuento && p.descuento > 0) || 
-        (p.precioAnterior && p.precio && p.precioAnterior > p.precio) ||
-        (p.precioFinal && p.precio && p.precioFinal < p.precio)
-      );
-      
-      console.log('Posibles ofertas forzadas:', posiblesOfertas.length, posiblesOfertas);
-      
-      // Usar todos los productos destacados como ofertas si no hay ninguno con oferta
-      if (posiblesOfertas.length === 0) {
-        // Si no hay productos en oferta, usar los 2 primeros productos destacados como demo
-        const ofertasDemo = destacados.slice(0, 2).map(p => ({
-          ...p,
-          enOferta: true,
-          porcentajeDescuento: 10, // Asignar un 10% de descuento para demostración
-          precioFinal: p.precio * 0.9
-        }));
-        setOfertasForzadas(ofertasDemo);
-      } else {
-        setOfertasForzadas(posiblesOfertas);
-      }
-    }
-  }, [destacados]);
 
   // Manejador para abrir el modal al hacer clic en una categoría
   const handleCategoryClick = (categoria, e) => {
@@ -155,6 +152,16 @@ const HomePage = () => {
       <SeccionesPersonalizadas />
       
       <div className="container mx-auto px-4 py-8">
+        {/* Carrusel de todos los productos */}
+        {(todosLosProductos && todosLosProductos.length > 0) || loadingTodos ? (
+          <ProductCarousel 
+            productos={todosLosProductos || []} 
+            loading={loadingTodos}
+            onProductClick={handleProductClick}
+            colorPrimario={colorPrimario}
+          />
+        ) : null}
+        
         {/* Sección de productos destacados */}
         <div className="mb-12 cursor-pointer">
           <div className="flex items-center justify-between mb-6">
@@ -193,8 +200,8 @@ const HomePage = () => {
           </div>
         </div>
         
-        {/* Sección de productos en oferta (usar ofertasForzadas como respaldo) */}
-        {(productosEnOferta && productosEnOferta.length > 0) || ofertasForzadas.length > 0 ? (
+        {/* Sección de productos en oferta - Solo mostrar si realmente hay productos en oferta */}
+        {productosEnOferta && Array.isArray(productosEnOferta) && productosEnOferta.length > 0 ? (
           <div className="mb-12 cursor-pointer">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
@@ -229,7 +236,7 @@ const HomePage = () => {
               {/* Contenido */}
               <div className="relative z-10 p-6">
                 <ProductList 
-                  productos={productosEnOferta && productosEnOferta.length > 0 ? productosEnOferta : ofertasForzadas} 
+                  productos={productosEnOferta} 
                   loading={loadingOfertas} 
                   title="" 
                   onProductClick={handleProductClick}

@@ -103,23 +103,47 @@ export const productoService = {
     try {
       console.log(`Obteniendo productos por categoría: Slug=${slug}, Categoría=${categoriaSlug}`);
       
-      const { page = 1, limit = 12 } = params;
-      const response = await api.get(
-        `/api/tiendas/${slug}/categorias/${categoriaSlug}?page=${page}&limit=${limit}`
-      );
+      const { page = 1, limit = 100 } = params; // Aumentar el límite para obtener todos los productos
+      
+      // Intentar primero con el endpoint de tienda
+      let response;
+      try {
+        response = await api.get(
+          `/api/tiendas/${slug}/categorias/${categoriaSlug}?page=${page}&limit=${limit}`
+        );
+      } catch (error) {
+        // Si falla, intentar con el endpoint global de categorías
+        console.log('Error con endpoint de tienda, intentando endpoint global:', error.message);
+        try {
+          response = await api.get(
+            `/api/productos/categoria/${categoriaSlug}?page=${page}&limit=${limit}`
+          );
+        } catch (error2) {
+          console.error('Error en ambos endpoints:', error2);
+          throw error2;
+        }
+      }
       
       console.log('Respuesta de API recibida para categoría:', {
         tipo: typeof response.data,
         esArray: Array.isArray(response.data),
-        keys: typeof response.data === 'object' ? Object.keys(response.data) : null
+        keys: typeof response.data === 'object' ? Object.keys(response.data) : null,
+        data: response.data
       });
       
       // La API debería retornar {productos: [...], paginacion: {...}}
       let productosData = response.data;
       
+      // Intentar diferentes estructuras de respuesta
       if (!Array.isArray(response.data) && response.data.productos) {
         console.log('Usando datos desde response.data.productos');
         productosData = response.data.productos;
+      } else if (!Array.isArray(response.data) && response.data.data) {
+        console.log('Usando datos desde response.data.data');
+        productosData = response.data.data;
+      } else if (!Array.isArray(response.data) && response.data.items) {
+        console.log('Usando datos desde response.data.items');
+        productosData = response.data.items;
       }
       
       // Si la respuesta es un array directo (legacy)
@@ -135,12 +159,19 @@ export const productoService = {
       
       console.log(`Se encontraron ${productosData.length} productos para la categoría ${categoriaSlug}`);
       
-      // Normalizar productos
-      const productos = productosData.map(productoService.normalizarProducto);
+      // Normalizar productos y filtrar nulls
+      const productos = productosData
+        .map(productoService.normalizarProducto)
+        .filter(p => p !== null);
+      
       return productos;
     } catch (error) {
       console.error('Error al obtener productos por categoría:', error);
-      throw error;
+      // Retornar array vacío en lugar de lanzar error para que la UI pueda manejarlo
+      if (error.response) {
+        console.error('Error de respuesta:', error.response.status, error.response.data);
+      }
+      return [];
     }
   },
 
@@ -200,11 +231,14 @@ export const productoService = {
       // Asegurar que precio y stock tienen valores por defecto
       precio: producto.precio || 0,
       stock: typeof producto.stock === 'number' ? producto.stock : 0,
-      descuento: producto.descuento || 0,
-      precioAnterior: producto.precioAnterior || 0,
-      // Asegurar que los campos de oferta están definidos
-      enOferta: producto.enOferta || false,
-      porcentajeDescuento: producto.porcentajeDescuento || 0,
+      // Preservar valores de descuento (no usar || 0 si el valor es 0 válido)
+      descuento: producto.descuento !== undefined ? producto.descuento : 0,
+      precioAnterior: producto.precioAnterior !== undefined ? producto.precioAnterior : 0,
+      // Preservar el estado de oferta (puede ser boolean o string)
+      enOferta: producto.enOferta === true || producto.enOferta === 'true' || producto.enOferta === 1,
+      // Preservar porcentajeDescuento (no usar || 0 si el valor es 0 válido)
+      porcentajeDescuento: producto.porcentajeDescuento !== undefined ? producto.porcentajeDescuento : 0,
+      precioFinal: producto.precioFinal !== undefined ? producto.precioFinal : producto.precio || 0,
     };
   },
 
@@ -422,8 +456,67 @@ export const productoService = {
   obtenerProductosEnOferta: async (slug) => {
     try {
       console.log(`Obteniendo productos en oferta para la tienda: ${slug}`);
-      // Primero obtenemos todos los productos
-      const response = await api.get(`/api/tiendas/${slug}/productos`);
+      
+      // Paso 1: Obtener información de la tienda para obtener el localId
+      // Según CORRECCION_FILTRO_LOCAL_OFERTAS.md, el localId puede estar en tienda._id o tienda.local._id
+      let localId = null;
+      try {
+        const tiendaResponse = await api.get(`/api/tiendas/${slug}`);
+        const tienda = tiendaResponse.data;
+        
+        // Intentar diferentes formas de obtener el localId
+        if (tienda) {
+          // Opción 1: localId está en tienda._id (si la tienda ES el local)
+          if (tienda._id) {
+            localId = tienda._id;
+          }
+          // Opción 2: localId está en tienda.local._id (si local es un objeto)
+          if (tienda.local) {
+            localId = tienda.local._id || tienda.local;
+          }
+          // Opción 3: localId está directamente en tienda.local (si es un string)
+          if (!localId && typeof tienda.local === 'string') {
+            localId = tienda.local;
+          }
+        }
+        
+        console.log('LocalId obtenido de la tienda:', localId);
+        console.log('Estructura de tienda recibida:', {
+          _id: tienda?._id,
+          local: tienda?.local,
+          localType: typeof tienda?.local
+        });
+      } catch (error) {
+        console.error('Error al obtener el localId de la tienda:', error);
+        // Si no podemos obtener el localId, lanzar error en lugar de continuar sin él
+        throw new Error('No se pudo obtener el ID del local de la tienda');
+      }
+      
+      // Paso 2: Validar que tenemos un localId
+      if (!localId) {
+        console.error('No se pudo obtener el localId de la tienda');
+        throw new Error('No se pudo obtener el ID del local de la tienda');
+      }
+      
+      // Paso 3: Usar el endpoint correcto según CORRECCION_FILTRO_LOCAL_OFERTAS.md
+      // GET /api/productos?enOferta=true&local={localId}
+      let response;
+      try {
+        response = await api.get(`/api/productos?enOferta=true&local=${localId}&page=1&limit=100`);
+        console.log('✅ Usando endpoint con localId:', `/api/productos?enOferta=true&local=${localId}`);
+      } catch (error) {
+        // Manejar errores según el documento: 400 (ID inválido) y 404 (Local no encontrado)
+        if (error.response?.status === 400) {
+          console.error('❌ Error 400: ID de local inválido');
+          throw new Error('ID de local inválido');
+        } else if (error.response?.status === 404) {
+          console.error('❌ Error 404: Local no encontrado');
+          throw new Error('Local no encontrado');
+        } else {
+          console.error('❌ Error al obtener productos en oferta:', error);
+          throw error;
+        }
+      }
       
       console.log('Respuesta completa del API:', response.data);
       
@@ -433,98 +526,48 @@ export const productoService = {
         return [];
       }
       
-      // Extraer el array de productos
-      let productosData = response.data;
+      // Según la especificación, el endpoint devuelve {productos: [...], paginacion: {...}}
+      let productosData = [];
       
-      if (!Array.isArray(response.data) && response.data.productos) {
+      if (response.data.productos && Array.isArray(response.data.productos)) {
         console.log('Usando datos desde response.data.productos, longitud:', response.data.productos.length);
         productosData = response.data.productos;
-      }
-      
-      if (!Array.isArray(response.data) && response.data.data) {
+      } else if (Array.isArray(response.data)) {
+        console.log('Respuesta es array directo, longitud:', response.data.length);
+        productosData = response.data;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
         console.log('Usando datos desde response.data.data, longitud:', response.data.data.length);
         productosData = response.data.data;
-      }
-      
-      if (!Array.isArray(response.data) && response.data.items) {
+      } else if (response.data.items && Array.isArray(response.data.items)) {
         console.log('Usando datos desde response.data.items, longitud:', response.data.items.length);
         productosData = response.data.items;
       }
       
-      if (!Array.isArray(productosData)) {
-        console.warn('Los datos de productos no son un array:', productosData);
+      if (!Array.isArray(productosData) || productosData.length === 0) {
+        console.warn('No se encontraron productos en oferta en la respuesta:', response.data);
         return [];
       }
       
-      console.log(`Se encontraron ${productosData.length} productos totales`);
+      console.log(`Se encontraron ${productosData.length} productos en oferta desde el API`);
       
-      // Imprimir todos los campos de cada producto para encontrar los correctos
-      console.log('TODOS LOS CAMPOS DE PRODUCTOS RECIBIDOS:');
+      // Verificar que todos los productos tienen enOferta === true (según la especificación)
+      console.log('Verificando productos recibidos:');
       productosData.forEach((p, index) => {
-        console.log(`Producto ${index + 1} (${p.nombre}):`);
-        console.log('ID:', p._id);
-        console.log('Campos de oferta:', {
+        console.log(`Producto ${index + 1} (${p.nombre}):`, {
           enOferta: p.enOferta,
           porcentajeDescuento: p.porcentajeDescuento,
-          descuento: p.descuento,
           precioAnterior: p.precioAnterior,
-          precio: p.precio,
-          precioFinal: p.precioFinal
+          precio: p.precio
         });
-        console.log('Todos los campos:', Object.keys(p));
       });
       
-      // Normalizar todos los productos
-      const productos = productosData.map(productoService.normalizarProducto);
+      // El endpoint ya devuelve solo productos con enOferta=true, pero verificamos por seguridad
+      // Normalizar los productos
+      const productosEnOferta = productosData
+        .map(productoService.normalizarProducto)
+        .filter(p => p !== null && (p.enOferta === true || p.enOferta === 'true' || p.enOferta === 1));
       
-      // Ahora probemos diferentes condiciones para encontrar productos en oferta
-      console.log('PROBANDO DIFERENTES CONDICIONES:');
-      
-      const ofertasDirectas = productosData.filter(p => p.enOferta === true);
-      console.log('Productos con enOferta === true:', ofertasDirectas.length);
-      
-      const ofertasPorcentaje = productosData.filter(p => p.porcentajeDescuento > 0);
-      console.log('Productos con porcentajeDescuento > 0:', ofertasPorcentaje.length);
-      
-      const ofertasDescuento = productosData.filter(p => p.descuento > 0);
-      console.log('Productos con descuento > 0:', ofertasDescuento.length);
-      
-      const ofertasPrecioAnterior = productosData.filter(p => p.precioAnterior && p.precioAnterior > p.precio);
-      console.log('Productos con precioAnterior > precio:', ofertasPrecioAnterior.length);
-      
-      // Probar una condición más amplia
-      const posiblesOfertas = productosData.filter(p => 
-        p.enOferta === true || 
-        (p.porcentajeDescuento && p.porcentajeDescuento > 0) || 
-        (p.descuento && p.descuento > 0) || 
-        (p.precioAnterior && p.precio && p.precioAnterior > p.precio) ||
-        (p.precioFinal && p.precio && p.precioFinal < p.precio)
-      );
-      
-      console.log('Posibles ofertas con condición ampliada:', posiblesOfertas.length);
-      if (posiblesOfertas.length > 0) {
-        console.log('Ejemplos de posibles ofertas:', posiblesOfertas.map(p => ({
-          id: p._id,
-          nombre: p.nombre,
-          enOferta: p.enOferta,
-          porcentajeDescuento: p.porcentajeDescuento,
-          descuento: p.descuento,
-          precio: p.precio,
-          precioAnterior: p.precioAnterior,
-          precioFinal: p.precioFinal
-        })));
-      }
-      
-      // Filtrar productos en oferta con criterio ampliado
-      const productosEnOferta = productos.filter(p => 
-        p.enOferta === true || 
-        (p.porcentajeDescuento && p.porcentajeDescuento > 0) || 
-        (p.descuento && p.descuento > 0) || 
-        (p.precioAnterior && p.precio && p.precioAnterior > p.precio) ||
-        (p.precioFinal && p.precio && p.precioFinal < p.precio)
-      );
-      
-      console.log(`Se encontraron ${productosEnOferta.length} productos en oferta:`, 
+      console.log(`Se encontraron ${productosEnOferta.length} productos en oferta después de normalizar:`, 
         productosEnOferta.map(p => ({
           id: p._id,
           nombre: p.nombre,

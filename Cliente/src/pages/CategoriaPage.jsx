@@ -39,35 +39,43 @@ const CategoriaPage = () => {
   
   useEffect(() => {
     if (tiendaSlug && categoriaId) {
-      // Si tenemos el nombre de la categoría, usamos eso, si no, usamos el ID directamente
-      const categoriaParaConsultar = categoriaNombre || categoriaId;
+      // Usar el ID de la categoría directamente (el backend espera el ID, no el nombre)
       dispatch(fetchProductosPorCategoria({ 
         slug: tiendaSlug, 
-        categoriaId: categoriaParaConsultar
+        categoriaId: categoriaId // Usar el ID directamente
       }));
     }
-  }, [dispatch, tiendaSlug, categoriaId, categoriaNombre]);
+  }, [dispatch, tiendaSlug, categoriaId]);
   
   // Efecto para actualizar la paginación cuando cambian los productos
   useEffect(() => {
-    if (productosPorCategoria) {
+    // Asegurar que productosPorCategoria sea un array
+    const productos = Array.isArray(productosPorCategoria) ? productosPorCategoria : [];
+    
+    if (productos.length > 0) {
       // Calcular el número total de páginas
-      const totalPaginas = Math.ceil(productosPorCategoria.length / productosPorPagina);
+      const totalPaginas = Math.ceil(productos.length / productosPorPagina);
       setPaginasTotal(totalPaginas);
       
       // Si la página actual es mayor que el total de páginas, regresar a la primera página
       if (paginaActual > totalPaginas && totalPaginas > 0) {
         setPaginaActual(1);
       }
+    } else {
+      setPaginasTotal(0);
+      setPaginaActual(1);
     }
   }, [productosPorCategoria, paginaActual]);
   
   // Efecto para actualizar los productos visibles
   useEffect(() => {
-    if (productosPorCategoria && productosPorCategoria.length > 0) {
+    // Asegurar que productosPorCategoria sea un array
+    const productos = Array.isArray(productosPorCategoria) ? productosPorCategoria : [];
+    
+    if (productos.length > 0) {
       const indexInicial = (paginaActual - 1) * productosPorPagina;
       const indexFinal = indexInicial + productosPorPagina;
-      setProductosVisibles(productosPorCategoria.slice(indexInicial, indexFinal));
+      setProductosVisibles(productos.slice(indexInicial, indexFinal));
     } else {
       setProductosVisibles([]);
     }
@@ -191,22 +199,36 @@ const CategoriaPage = () => {
           </div>
         ) : (
           <div>
-            <div className="glass-panel p-4 rounded-lg shadow-lg mb-6 flex justify-between items-center border border-subtle">
-              <div className="flex items-center text-white text-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span><strong>{productosPorCategoria.length}</strong> productos encontrados en <span className="font-medium">{categoriaNombre}</span></span>
+            {Array.isArray(productosPorCategoria) && productosPorCategoria.length > 0 ? (
+              <>
+                <div className="glass-panel p-4 rounded-lg shadow-lg mb-6 flex justify-between items-center border border-subtle">
+                  <div className="flex items-center text-white text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span><strong>{productosPorCategoria.length}</strong> productos encontrados en <span className="font-medium">{categoriaNombre}</span></span>
+                  </div>
+                </div>
+                
+                <ProductList 
+                  productos={productosVisibles} 
+                  loading={false} 
+                  onProductClick={handleProductClick} 
+                  onAgregarAlCarrito={handleAgregarAlCarrito}
+                  compact={true}
+                />
+              </>
+            ) : (
+              <div className="glass-panel p-8 rounded-lg shadow-lg text-center">
+                <div className="text-muted mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  <p className="text-xl font-semibold text-white mb-2">No se encontraron productos</p>
+                  <p className="text-muted">No hay productos disponibles en la categoría "{categoriaNombre}" en este momento.</p>
+                </div>
               </div>
-            </div>
-            
-            <ProductList 
-              productos={productosVisibles} 
-              loading={false} 
-              onProductClick={handleProductClick} 
-              onAgregarAlCarrito={handleAgregarAlCarrito}
-              compact={true}
-            />
+            )}
             
             {/* Paginación */}
             {paginasTotal > 1 && (

@@ -112,12 +112,15 @@ const productoSlice = createSlice({
       })
       .addCase(fetchProductosPorCategoria.fulfilled, (state, action) => {
         state.loading = false;
-        state.productosPorCategoria = action.payload;
+        // Asegurar que siempre sea un array
+        state.productosPorCategoria = Array.isArray(action.payload) ? action.payload : [];
         state.categoriaActual = action.meta.arg.categoriaId;
+        state.error = null; // Limpiar errores previos si hay éxito
       })
       .addCase(fetchProductosPorCategoria.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || { message: 'Error al obtener productos por categoría' };
+        state.productosPorCategoria = []; // Limpiar productos en caso de error
       });
 
     // buscarProductos
