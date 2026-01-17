@@ -1024,10 +1024,10 @@ const CarritoPage = () => {
                           <div>
                             <p className="text-sm text-muted mb-1">CVU/CBU:</p>
                             <div className="flex items-center">
-                              <span className="font-mono text-white text-lg tracking-wide select-all">0000003100066274168247</span>
+                              <span className="font-mono text-white text-lg tracking-wide select-all">1430001713026445550018</span>
                               <button 
                                 onClick={() => {
-                                  navigator.clipboard.writeText('0000003100066274168247');
+                                  navigator.clipboard.writeText('1430001713026445550018');
                                   toast.success('Número copiado al portapapeles');
                                 }}
                                 className="ml-2 text-muted hover:text-white cursor-pointer"
@@ -1042,10 +1042,10 @@ const CarritoPage = () => {
                           <div>
                             <p className="text-sm text-muted mb-1">Alias:</p>
                             <div className="flex items-center">
-                              <span className="font-mono text-white text-lg select-all">tienda.pagos</span>
+                              <span className="font-mono text-white text-lg select-all">local3.2026</span>
                               <button 
                                 onClick={() => {
-                                  navigator.clipboard.writeText('tienda.pagos');
+                                  navigator.clipboard.writeText('local3.2026');
                                   toast.success('Alias copiado al portapapeles');
                                 }}
                                 className="ml-2 text-muted hover:text-white cursor-pointer"
@@ -1070,14 +1070,26 @@ const CarritoPage = () => {
                               </svg>
                             </div>
                             <div className="ml-3">
-                              <p className="text-sm text-muted">Una vez realizada la transferencia, envíanos el comprobante por WhatsApp para agilizar la entrega.</p>
+                              <p className="text-sm text-muted">Una vez hecha la transferencia deberá mandar el comprobante a:</p>
+                              <a 
+                                href="https://wa.me/5491135676798?text=Hola,%20quiero%20hacer%20un%20pedido"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-semibold mt-2 inline-block"
+                                style={{ color: colorPrimario }}
+                              >
+                                +549 11 3567-6798
+                              </a>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
                     <button
-                      onClick={handleContinuarDespuesDeConfirmacion}
+                      onClick={() => {
+                        window.open('https://wa.me/5491135676798?text=Hola,%20quiero%20hacer%20un%20pedido', '_blank');
+                        handleContinuarDespuesDeConfirmacion();
+                      }}
                       className="w-full py-4 rounded-lg font-semibold transition duration-200 shadow-md hover:shadow-lg cursor-pointer"
                       style={{ backgroundColor: colorPrimario, color: colorTexto }}
                     >

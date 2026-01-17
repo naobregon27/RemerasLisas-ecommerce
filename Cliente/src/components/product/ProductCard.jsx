@@ -102,14 +102,14 @@ const ProductCard = ({ producto, onClick, compact = false }) => {
 
   return (
     <div 
-      className={`glass-panel rounded-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300 ${compact ? 'text-sm' : 'text-base'}`}
+      className={`glass-panel rounded-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300 cursor-pointer ${compact ? 'text-sm' : 'text-base'}`}
       onClick={onClick}
     >
       <div className="relative">
         <img 
           src={imagen} 
           alt={nombre} 
-          className="w-full aspect-square object-cover"
+          className="w-full aspect-square object-cover cursor-pointer"
           onError={(e) => { e.target.src = '/placeholder.png' }}
         />
         

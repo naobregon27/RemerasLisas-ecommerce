@@ -264,7 +264,7 @@ const Banner = () => {
                     <img 
                       src={getImageUrl(slide.url)} 
                       alt={slide.alt || `Slide ${index + 1}`} 
-                      className="w-full h-80 md:h-96 lg:h-[28rem] object-contain bg-transparent"
+                      className="w-full h-80 md:h-96 lg:h-[28rem] object-contain bg-transparent cursor-pointer"
                       onLoad={() => console.log(`Imagen ${index + 1} cargada correctamente: ${slide.url}`)}
                       onError={(e) => {
                         console.error(`Error al cargar imagen: ${slide.url}`);

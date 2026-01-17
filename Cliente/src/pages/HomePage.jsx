@@ -49,6 +49,9 @@ const HomePage = () => {
 
   useEffect(() => {
     if (tiendaSlug) {
+      // Limpiar datos anteriores cuando cambia el slug
+      setTodosLosProductos([]);
+      
       console.log("Cargando productos destacados y en oferta para el slug:", tiendaSlug);
       dispatch(fetchDestacados(tiendaSlug));
       dispatch(fetchProductosEnOferta(tiendaSlug));
@@ -130,7 +133,22 @@ const HomePage = () => {
     }
   };
 
-  if (error) {
+  // Mostrar loader mientras está cargando la tienda inicial
+  if (loading && !tienda) {
+    return (
+      <Layout>
+        <div className="container mx-auto px-4 py-8 text-center">
+          <div className="glass-panel inline-block px-6 py-4 rounded-xl">
+            <Loader size="large" color="white" />
+            <p className="text-muted mt-4">Cargando tienda...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Solo mostrar error si no está cargando y hay un error real
+  if (error && !loading && !tienda) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-8 text-center">

@@ -139,7 +139,7 @@ const ProductViewModal = ({ isOpen, onClose, producto, loading }) => {
                 <img 
                   src={imagenes[selectedImage]?.url || imagenes[selectedImage] || 'https://via.placeholder.com/400x400?text=Sin+imagen'} 
                   alt={nombre}
-                  className="w-full h-full object-contain p-2"
+                  className="w-full h-full object-contain p-2 cursor-pointer"
                   onError={(e) => {
                     e.target.src = 'https://via.placeholder.com/400x400?text=Sin+imagen';
                   }}
@@ -172,7 +172,7 @@ const ProductViewModal = ({ isOpen, onClose, producto, loading }) => {
                     <img 
                       src={img.url || img} 
                       alt={`${nombre} - imagen ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover cursor-pointer"
                       onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/100x100?text=Error';
                       }}
@@ -365,7 +365,7 @@ const ProductViewModal = ({ isOpen, onClose, producto, loading }) => {
                     <img 
                       src={relacionado.imagenes?.[0]?.url || relacionado.imagenes?.[0] || relacionado.imagen || 'https://via.placeholder.com/200x200?text=Sin+imagen'} 
                       alt={relacionado.nombre}
-                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer"
                       onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/200x200?text=Sin+imagen';
                       }}

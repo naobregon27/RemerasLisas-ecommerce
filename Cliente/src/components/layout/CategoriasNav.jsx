@@ -1,20 +1,29 @@
 import React, { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import CategoryModal from '../../pages/CategoryModal';
 
 const CategoriasNav = () => {
-  const { tiendaSlug } = useParams();
+  const { tiendaSlug, categoriaId } = useParams();
+  const location = useLocation();
   const { categorias, configuracion } = useSelector((state) => state.tienda);
-  const [categoriaActiva, setCategoriaActiva] = useState(null);
+  const [categoriaHover, setCategoriaHover] = useState(null);
 
   // Obtener color primario de la tienda o fallback
   const colorPrimario = configuracion?.colorPrimario || '#335cff';
 
+  // Detectar si estamos en la página de productos
+  const esPaginaProductos = location.pathname === `/${tiendaSlug}/productos`;
+  
+  // Detectar la categoría seleccionada según la URL
+  const categoriaSeleccionada = categoriaId 
+    ? categorias?.find(cat => cat._id === categoriaId)
+    : null;
+
   // Hover handlers
-  const handleCategoriaHover = (categoria) => setCategoriaActiva(categoria);
-  const handleMouseLeave = () => setCategoriaActiva(null);
+  const handleCategoriaHover = (categoria) => setCategoriaHover(categoria);
+  const handleMouseLeave = () => setCategoriaHover(null);
 
   // Estado para controlar el modal de categoría
   const [modalOpen, setModalOpen] = useState(false);
@@ -47,12 +56,12 @@ const CategoriasNav = () => {
                 <Link
                   to={`/${tiendaSlug}/productos`}
                   className={`px-5 py-2 rounded-lg font-medium text-white transition-all duration-200 border-2 ${
-                    categoriaActiva === null && categoriaActiva !== undefined
+                    esPaginaProductos || (categoriaHover === null && !categoriaSeleccionada)
                       ? ''
                       : 'border-transparent'
                   }`}
                   style={
-                    categoriaActiva === null && categoriaActiva !== undefined
+                    esPaginaProductos || (categoriaHover === null && !categoriaSeleccionada)
                       ? {
                           borderColor: colorPrimario,
                           background: colorPrimario + '10',
@@ -66,7 +75,12 @@ const CategoriasNav = () => {
                 </Link>
               </li>
               
-              {categorias.map((categoria) => (
+              {categorias.map((categoria) => {
+                const esCategoriaSeleccionada = categoriaSeleccionada?._id === categoria._id;
+                const esCategoriaHover = categoriaHover?._id === categoria._id;
+                const mostrarEstiloActivo = esCategoriaSeleccionada || esCategoriaHover;
+                
+                return (
                 <li
                   key={categoria._id}
                   className="relative"
@@ -75,28 +89,28 @@ const CategoriasNav = () => {
                 >
                   <Link
                     to={`/${tiendaSlug}/categoria/${categoria._id}`}
-                  className={`px-5 py-2 rounded-lg font-medium text-white transition-all duration-200 border-2 ${
-                      categoriaActiva?._id === categoria._id
-                        ? ''
-                        : 'border-transparent'
-                    }`}
-                    style={
-                      categoriaActiva?._id === categoria._id
-                        ? {
-                            borderColor: colorPrimario,
-                            background: colorPrimario + '10',
-                            color: colorPrimario,
-                            boxShadow: `0 2px 8px 0 ${colorPrimario}22`,
-                          }
-                        : {}
-                    }
+                    className={`px-5 py-2 rounded-lg font-medium text-white transition-all duration-200 border-2 ${
+                        mostrarEstiloActivo
+                          ? ''
+                          : 'border-transparent'
+                      }`}
+                      style={
+                        mostrarEstiloActivo
+                          ? {
+                              borderColor: colorPrimario,
+                              background: colorPrimario + '10',
+                              color: colorPrimario,
+                              boxShadow: `0 2px 8px 0 ${colorPrimario}22`,
+                            }
+                          : {}
+                      }
                   >
                     {categoria.nombre}
                   </Link>
 
                   {/* Menú desplegable de categoría */}
                   <AnimatePresence>
-                    {categoriaActiva?._id === categoria._id && (
+                    {esCategoriaHover && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -163,7 +177,8 @@ const CategoriasNav = () => {
                     )}
                   </AnimatePresence>
                 </li>
-              ))}
+              );
+              })}
             </ul>
           </div>
         </div>

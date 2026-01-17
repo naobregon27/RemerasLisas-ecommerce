@@ -124,7 +124,7 @@ const BannerGallery = () => {
               <img 
                 src={getImageUrl(imagen.url)} 
                 alt={imagen.alt || `Banner ${index + 1}`} 
-                className="w-full h-full object-cover transition-all duration-700 group-hover:brightness-110"
+                className="w-full h-full object-cover transition-all duration-700 group-hover:brightness-110 cursor-pointer"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = 'https://via.placeholder.com/800x400?text=Error+al+cargar';
@@ -160,7 +160,7 @@ const BannerGallery = () => {
                 <img 
                   src={getImageUrl(imagenSeleccionada.url)} 
                   alt={imagenSeleccionada.alt || 'Imagen de banner'} 
-                  className="w-full object-contain max-h-[80vh]"
+                  className="w-full object-contain max-h-[80vh] cursor-pointer"
                 />
                 <button 
                   className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm rounded-full p-2 shadow-lg hover:bg-white/20 transition-all duration-300 border border-white/15 text-white"

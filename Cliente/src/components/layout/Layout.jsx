@@ -4,7 +4,7 @@ import { useDispatch } from 'react-redux';
 import Header from './Header';
 import Footer from './Footer';
 import CategoriasNav from './CategoriasNav';
-import { fetchTienda, fetchCategorias } from '../../store/tiendaSlice';
+import { fetchTienda, fetchCategorias, limpiarEstado } from '../../store/tiendaSlice';
 import { inicializarCarrito } from '../../store/carritoSlice';
 import { tiendaService } from '../../services/tiendaService';
 
@@ -48,6 +48,9 @@ const Layout = ({ children }) => {
 
   useEffect(() => {
     if (tiendaSlug && tiendaSlug !== 'undefined') {
+      // Limpiar estado anterior antes de cargar nueva tienda
+      dispatch(limpiarEstado());
+      
       dispatch(fetchTienda(tiendaSlug));
       dispatch(fetchCategorias(tiendaSlug));
       dispatch(inicializarCarrito());

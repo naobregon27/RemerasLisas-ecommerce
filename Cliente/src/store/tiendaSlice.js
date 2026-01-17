@@ -74,7 +74,17 @@ const tiendaSlice = createSlice({
     loadingOfertas: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    limpiarEstado: (state) => {
+      state.tienda = null;
+      state.categorias = [];
+      state.destacados = [];
+      state.productosEnOferta = [];
+      // No limpiar loading aquí, se establecerá cuando se inicie la nueva carga
+      state.loadingOfertas = false;
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       // Tienda
@@ -135,4 +145,5 @@ const tiendaSlice = createSlice({
   },
 });
 
+export const { limpiarEstado } = tiendaSlice.actions;
 export default tiendaSlice.reducer; 
