@@ -250,6 +250,21 @@ export const tiendaService = {
   },
   
   /**
+   * Obtiene los videos activos de una tienda (públicos)
+   * @param {string} slug - Slug de la tienda
+   * @returns {Array} Lista de videos activos
+   */
+  obtenerVideos: async (slug) => {
+    try {
+      const response = await api.get(`/api/tiendas/${slug}/videos`);
+      return Array.isArray(response.data?.videos) ? response.data.videos : [];
+    } catch (error) {
+      console.error('Error al obtener videos de la tienda:', error);
+      return [];
+    }
+  },
+
+  /**
    * Normaliza los datos de una tienda
    * @param {Object} tienda - Tienda a normalizar
    * @returns {Object} Tienda normalizada
